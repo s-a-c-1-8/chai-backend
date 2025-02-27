@@ -3,6 +3,7 @@ import { ApiError } from "../utils/ApiError.js";
 import { User } from "../models/user.model.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
+import mongoose from "mongoose";
 import jwt from "jsonwebtoken";
 
 const generateAccessAndRefreshTokens = async (userId) => {
@@ -149,8 +150,8 @@ const logoutUser = asyncHandler(async (req, res) => {
   await User.findByIdAndUpdate(
     req.user._id,
     {
-      $set: {
-        refreshToken: undefined,
+      $unset: {
+        refreshToken: 1,
       },
     },
     {
@@ -200,6 +201,8 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
 
     const { accessToken, newRefreshToken } =
       await generateAccessAndRefreshTokens(user._id);
+    console.log("Token refreshed successfully!");
+
     return res
       .status(200)
       .cookie("accessToken", accessToken, options)
@@ -230,7 +233,7 @@ const changeCurrentPassword = asyncHandler(async (req, res) => {
   await user.save({ validateBeforeSave: false });
 
   return res
-    .save(200)
+    .status(200)
     .json(new ApiResponse(200, {}, "Password changed successfully!"));
 });
 
@@ -242,10 +245,12 @@ const getCurrentUser = asyncHandler(async (req, res) => {
 
 const updateAccountDetails = asyncHandler(async (req, res) => {
   const { fullName, email } = req.body;
-  if (!fullName || !email) {
+  console.log(req.body);
+
+  if (!fullName && !email) {
     throw new ApiError(400, "Full name and email are required!");
   }
-
+  console.log(req.user?._id);
   const user = await User.findByIdAndUpdate(
     req.user?._id,
     {
@@ -323,7 +328,7 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
 
   const channel = await User.aggregate([
     {
-      $math: {
+      $match: {
         username: username?.toLowerCase(),
       },
     },
@@ -392,10 +397,11 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
 });
 
 const getWatchHistory = asyncHandler(async (req, res) => {
+  console.log(req.user._id);
   const user = await User.aggregate([
     {
       $match: {
-        _id: new mongoose.Types.ObjestId(req.user._id),
+        _id: new mongoose.Types.ObjectId(req.user._id),
       },
     },
     {
